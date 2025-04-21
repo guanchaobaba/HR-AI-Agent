@@ -1,5 +1,6 @@
 # Entry point to run the spider
-from functions import process_candidate_message, search_candidate
+
+from functions.process_candidate_message import process_candidate_message
 from utils.browser import create_driver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -21,10 +22,10 @@ def main():
 
             if verify_login(driver):
                 logger.info("Successfully logged in")
-                # Continue with your search functionality
                 try:
+                    # Continue with your search functionality
                     # search_candidate(driver)
-                    process_candidate_message(driver)
+                    process_candidate_message(driver, max_candidates=1)
                 except Exception as e:
                     logger.error(f"Error in search page: {e}")
 

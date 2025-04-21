@@ -1,42 +1,14 @@
 import os
-from datetime import datetime
 import json
 from selenium.webdriver.support.ui import WebDriverWait
 from utils import wait_for_page_load
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from .logger import logger
+import time
+from selenium.webdriver.common.action_chains import ActionChains
 
 BASE_DIR = os.getcwd()
-
-
-def validate_cookie_format(cookie):
-    """Validate individual cookie format"""
-    required_fields = ['name', 'value']
-    for field in required_fields:
-        if field not in cookie:
-            logger.warning(
-                f"Cookie validation failed: missing required field '{field}'")
-            return False
-    return True
-
-
-def validate_cookies_file(cookies):
-    """Validate the entire cookies file"""
-    if not isinstance(cookies, list):
-        logger.error("Cookies file must contain a list of cookie objects")
-        return False
-
-    if not cookies:
-        logger.warning("Cookies file is empty")
-        return False
-
-    for cookie in cookies:
-        if not validate_cookie_format(cookie):
-            return False
-
-    logger.debug(f"Successfully validated {len(cookies)} cookies")
-    return True
 
 
 def import_browser_cookies(driver, cookie_file=os.path.join(BASE_DIR, 'userSecret', 'browser_cookies.json')):
@@ -90,19 +62,67 @@ def import_browser_cookies(driver, cookie_file=os.path.join(BASE_DIR, 'userSecre
 def verify_login(driver):
     """Verify if the login is successful with better checks"""
     try:
-        # First check if we're redirected to login page
-        logger.debug("Navigating to verification URL")
-        driver.get('https://www.zhipin.com/web/chat/index')
+        logger.debug("Starting login verification process")
 
-        # Add explicit wait for page load
-        driver.execute_script("return document.readyState") == "complete"
+        # Wait for page to be fully loaded first
         wait = WebDriverWait(driver, 10)
+
+        # Look for the "我要招聘" (I want to recruit) link and click it like a human
+        recruit_link_xpaths = [
+            "//*[@id='header']/div[1]/div[4]/div/span/a[1]",  # Provided xpath
+            # Using the ka attribute
+            "//a[@ka='header-boss']",
+            # Using the title attribute
+            "//a[contains(@title, '我要招聘')]",
+            # Using the link text
+            "//a[contains(text(), '我要招聘')]"
+        ]
+
+        # Try each xpath until we find the element
+        clicked = False
+        for xpath in recruit_link_xpaths:
+            try:
+                logger.debug(f"Looking for recruit link with xpath: {xpath}")
+                recruit_link = wait.until(
+                    EC.element_to_be_clickable((By.XPATH, xpath))
+                )
+
+                # Scroll to the element to ensure it's visible
+                driver.execute_script(
+                    "arguments[0].scrollIntoView({block: 'center'});", recruit_link)
+
+                # Add a small delay to mimic human behavior
+
+                time.sleep(0.5)
+
+                # Use ActionChains for more human-like click behavior
+                actions = ActionChains(driver)
+                # Move to the element and pause briefly before clicking
+                actions.move_to_element(recruit_link)
+                actions.pause(0.2)  # Brief pause when hovering
+                actions.click()
+                actions.perform()
+                logger.info("Successfully clicked on '我要招聘' link")
+                clicked = True
+                break
+            except Exception as e:
+                logger.debug(f"Could not click using xpath {xpath}: {e}")
+
+        if not clicked:
+            logger.warning(
+                "Could not find or click the recruitment link, falling back to direct URL")
+
+        # Check for and close any popups that might appear
+        handle_popups(driver)
 
         # Check for login indicators with descriptive names
         login_indicators = [
             ("Card List", By.CSS_SELECTOR, ".page-name"),
             ("Logout Button", By.CSS_SELECTOR, ".user-name"),
-            ("Profile Card", By.CSS_SELECTOR, "[class*='.geek-info-card']")
+            ("Profile Card", By.CSS_SELECTOR, "[class*='.geek-info-card']"),
+            # Additional indicators that might be present in the recruitment page
+            ("Chat Section", By.CSS_SELECTOR, ".chat-container"),
+            ("Recruitment Dashboard", By.CSS_SELECTOR, ".boss-dashboard")
         ]
 
         found_elements = []
@@ -119,6 +139,7 @@ def verify_login(driver):
             except:
                 missing_elements.append(name)
 
+        # Rest of your function remains the same...
         # Log status report
         if found_elements:
             logger.info("Found login indicator elements:")
@@ -149,103 +170,123 @@ def verify_login(driver):
         return False
 
 
-def extract_candidate_information(driver):
-    """
-    Extract and log candidate information from search results
-
-    This function extracts key details about candidates from the search results
-    using specific XPath selectors, and logs the information.
-    """
-    logger.info("Extracting candidate information from search results")
-
+def handle_popups(driver):
+    """Handle any popups that appear after login in a human-like manner"""
     try:
-        # Wait for candidate list to be present
-        wait = WebDriverWait(driver, 30)
-        candidate_container = wait.until(EC.presence_of_element_located(
-            (By.XPATH, '//*[@id="is-gray-batch-chat"]/div[1]')
-        ))
+        # Set a short wait time for popups
+        popup_wait = WebDriverWait(driver, 2)
 
-        # Find all candidate items (list items)
-        candidate_items = candidate_container.find_elements(By.XPATH, './li')
+        # Common close button patterns
+        close_button_selectors = [
+            (By.CSS_SELECTOR, ".icon-close"),
+            # X icons
+            (By.XPATH, "//i[contains(@class, 'close')]")
+        ]
 
-        if not candidate_items:
-            logger.warning("No candidate items found in the search results")
+        # Look for popup elements
+        popup_found = False
+        logger.debug("Checking for popups after login")
+
+        # First check if any popup/modal/dialog exists
+        popup_containers = [
+            (By.CSS_SELECTOR, ".dialog-container"),
+            (By.CSS_SELECTOR, ".popup-container"),
+            (By.CSS_SELECTOR, ".modal-container"),
+            (By.CSS_SELECTOR, ".overlay"),
+            (By.XPATH,
+             "//div[contains(@class, 'dialog') or contains(@class, 'popup') or contains(@class, 'modal')]")
+        ]
+
+        for by, selector in popup_containers:
+            try:
+                popup = popup_wait.until(
+                    EC.presence_of_element_located((by, selector)))
+                if popup.is_displayed():
+                    popup_found = True
+                    logger.info("Popup detected after login")
+                    break
+            except:
+                continue
+
+        # If no popup found, return
+        if not popup_found:
+            logger.debug("No popups detected after login")
             return
 
-        logger.info(
-            f"Found {len(candidate_items)} candidates in search results")
-
-        # Extract information for each candidate
-        for index, candidate in enumerate(candidate_items):
+        # Try to close the popup
+        for by, selector in close_button_selectors:
             try:
-                # Extract name, job title, experience, etc.
-                candidate_data = {}
+                close_button = popup_wait.until(
+                    EC.element_to_be_clickable((by, selector)))
 
-                # Basic candidate info (name, position)
-                try:
-                    basic_info = candidate.find_element(
-                        By.XPATH, './/div[2]/div/div[2]/div/div[1]/div[1]/span[1]').text
-                    candidate_data["basic_info"] = basic_info
-                except Exception as e:
-                    logger.debug(
-                        f"Could not extract basic info for candidate {index+1}: {e}")
+                # Scroll to button if needed
+                driver.execute_script(
+                    "arguments[0].scrollIntoView({block: 'center'});", close_button)
 
-                # Experience
-                try:
-                    experience = candidate.find_element(
-                        By.XPATH, './/div[2]/div/div[2]/div/div[1]/div[2]/span[3]').text
-                    candidate_data["experience"] = experience
-                except Exception as e:
-                    logger.debug(
-                        f"Could not extract experience for candidate {index+1}: {e}")
+                time.sleep(0.3)
 
-                # Current position
-                try:
-                    current_position = candidate.find_element(
-                        By.XPATH, './/div[2]/div/div[2]/div/div[2]/ul[1]/li/span[2]').text
-                    candidate_data["current_position"] = current_position
-                except Exception as e:
-                    logger.debug(
-                        f"Could not extract current position for candidate {index+1}: {e}")
+                # Use ActionChains for more human-like interaction
+                actions = ActionChains(driver)
+                # Move to the button with slight randomness to mimic human movement
+                actions.move_to_element_with_offset(
+                    close_button, 2, 1)  # Slight offset
+                actions.pause(0.3)  # Brief pause before clicking
+                actions.click()
+                actions.perform()
+                logger.info(
+                    f"Successfully closed popup using selector: {selector}")
 
-                # Education
-                try:
-                    education = candidate.find_element(
-                        By.XPATH, './/div[2]/div/div[2]/div/div[1]/div[2]/span[1]').text
-                    candidate_data["education"] = education
-                except Exception as e:
-                    logger.debug(
-                        f"Could not extract education for candidate {index+1}: {e}")
-
-                # Age
-                try:
-                    age = candidate.find_element(
-                        By.XPATH, './/div[2]/div/div[2]/div/div[1]/div[2]/span[2]').text
-                    candidate_data["age"] = age
-                except Exception as e:
-                    logger.debug(
-                        f"Could not extract age for candidate {index+1}: {e}")
-
-                # Log the complete candidate information
-                logger.info(f"Candidate {index+1} Information:")
-                for key, value in candidate_data.items():
-                    logger.info(
-                        f"  • {key.replace('_', ' ').title()}: {value}")
-                logger.info("---")
-
+                # Add a small delay to let the popup close animation finish
+                time.sleep(0.5)
+                return
             except Exception as e:
-                logger.error(
-                    f"Error extracting information for candidate {index+1}: {e}")
+                logger.debug(
+                    f"Could not close popup with selector {selector}: {e}")
 
-        return True
+        # If we get here, we found a popup but couldn't close it
+        logger.warning("Found popup but couldn't find a close button")
+
+        # Try to click outside the popup as a last resort
+        try:
+            # Using ActionChains to click in the top-left corner of the page
+            actions = ActionChains(driver)
+            # Move to a position likely outside the popup (top-left)
+            actions.move_by_offset(10, 10)
+            actions.pause(0.2)  # Slight pause
+            actions.click()
+            actions.perform()
+            logger.info("Attempted to close popup by clicking outside")
+        except:
+            logger.warning("Could not close popup by clicking outside")
 
     except Exception as e:
-        logger.error(f"Error extracting candidate information: {e}")
-        # Take a screenshot for debugging
-        try:
-            screenshot_path = "logs/candidate_extraction_error.png"
-            driver.save_screenshot(screenshot_path)
-            logger.error(f"Screenshot saved to {screenshot_path}")
-        except:
-            pass
+        logger.error(f"Error handling popups: {e}")
+
+
+def validate_cookie_format(cookie):
+    """Validate individual cookie format"""
+    required_fields = ['name', 'value']
+    for field in required_fields:
+        if field not in cookie:
+            logger.warning(
+                f"Cookie validation failed: missing required field '{field}'")
+            return False
+    return True
+
+
+def validate_cookies_file(cookies):
+    """Validate the entire cookies file"""
+    if not isinstance(cookies, list):
+        logger.error("Cookies file must contain a list of cookie objects")
         return False
+
+    if not cookies:
+        logger.warning("Cookies file is empty")
+        return False
+
+    for cookie in cookies:
+        if not validate_cookie_format(cookie):
+            return False
+
+    logger.debug(f"Successfully validated {len(cookies)} cookies")
+    return True

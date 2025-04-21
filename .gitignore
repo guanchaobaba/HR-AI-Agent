@@ -1,5 +1,5 @@
 /userSecret*
-/data*
+/data_extract*
 driver*
 venv
 logs
