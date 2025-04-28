@@ -8,8 +8,8 @@ import hashlib
 import os
 from datetime import datetime
 from utils.logger import logger
-from utils.random_sleep import random_delay
-from utils.candidate_db import CandidateDatabase
+from scraper_agents.boss_hr.random_sleep import random_delay
+from scraper_agents.boss_hr.candidate_db import CandidateDatabase
 from pathlib import Path
 from selenium.webdriver.common.action_chains import ActionChains
 import requests

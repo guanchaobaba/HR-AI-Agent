@@ -24,7 +24,7 @@ class CustomFormatter(logging.Formatter):
             log_message = f"{prefix}{log_message}{reset}"
         return log_message
 
-def setup_logger(name='ai_resume_scoring', level=logging.DEBUG):
+def setup_logger(name='HR AI AGent', level=logging.DEBUG):
     """
     Set up a logger with both file and console handlers
     

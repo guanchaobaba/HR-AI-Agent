@@ -5,7 +5,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from typing import Optional
-from .logger import logger
+from ..utils.logger import logger
 
 
 def create_driver(is_headless=False):
@@ -35,6 +35,24 @@ def create_driver(is_headless=False):
     if not is_headless:
         driver.maximize_window()
         logger.debug("Browser window maximized")
+
+
+
+    ''' OPTIONAL:
+    Download and use the JS code to avoid being detected by the website would block you
+    https://cdn.jsdelivr.net/gh/requireCool/stealth.min.js/stealth.min.js '''
+
+    # Read the JavaScript code for hiding features
+    with open('stealth.min.js', 'r', encoding='utf8') as f:
+        js = f.read()
+
+    # Execute the JavaScript code
+    driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {'source': js})
+
+    ''' Visit the following two websites to test whether the browser is ok for anti-crawling
+    1. https://bot.sannysoft.com/
+    2. https://antcpt.com/score_detector/'''
+
 
     return driver
 
