@@ -1,11 +1,8 @@
 import pyautogui
 import os
-import time
-import json
-import hashlib
-import random
 from helpers.lookup_caching import get_image_id, load_cache, save_cache
 from helpers.mouse_movements import human_click
+from helpers.sleeping_time import random_sleep
 from utils.logger import logger
 # 1) find project root & cache file
 project_root = os.path.abspath(os.path.join(
@@ -37,10 +34,11 @@ def find_N_click(image_path, min_sleep=0.5, max_sleep=3.0):
                 f"Found & cached {os.path.basename(image_path)} at: {x},{y}")
 
         # Use human-like mouse movement and click
-        human_click(x, y)
+        # normal speed of mouse 1, faster move 3, slow move 0.5
+        human_click(x, y, speed_factor=2)
 
         # Variable sleep time that can be controlled by parameters
-        time.sleep(random.uniform(min_sleep, max_sleep))
+        random_sleep(min_sleep, max_sleep)
 
         if cache_updated:
             save_cache(cache, cache_path)
@@ -61,12 +59,12 @@ def get_front_page():
         image_path2 = os.path.join(
             project_root, "resources", "coords_images", "2.png")
 
-        find_N_click(image_path1, min_sleep=1, max_sleep=2)
-        find_N_click(image_path2, 0.5, 1)
+        find_N_click(image_path1, min_sleep=0.6, max_sleep=1)
+        find_N_click(image_path2, 0.01, 0.07)
 
         # Take screenshot of result
         screenshot_path = os.path.join(
-            project_root, "resources", "screenshot.png")
+            project_root, "resources", "debug_screenshots", "screenshot.png")
         pyautogui.screenshot(screenshot_path)
         logger.info(f"Screenshot saved to {screenshot_path}")
 

@@ -4,180 +4,51 @@ import random
 import math
 
 
-def human_like_mouse_move(start_x, start_y, end_x, end_y, duration=1.0, curve_intensity=5):
+def human_like_mouse_move(start_x=None, start_y=None, end_x=0, end_y=0,
+                          duration=0.2, speed_factor=1.0):
     """
-    Move the mouse in a human-like curved motion with various movement patterns.
+    Move the mouse using PyAutoGUI’s duration+tween and a bit of random jitter.
     """
-    # Get current mouse position if start not provided
+    # 1) Determine start position
     if start_x is None or start_y is None:
         start_x, start_y = pyautogui.position()
 
-    # Calculate distance
-    distance = math.sqrt((end_x - start_x)**2 + (end_y - start_y)**2)
+    # 2) Scale duration by speed_factor (higher speed_factor → shorter duration)
+    total_dur = max(0.01, duration / speed_factor)
 
-    # Determine number of steps based on distance and duration
-    steps = max(int(distance/10), 20)
-    interval = duration / steps
+    # 3) Choose a tween for natural easing
+    tween = random.choice([
+        pyautogui.easeInQuad, pyautogui.easeOutQuad, pyautogui.easeInOutQuad
+    ])
 
-    # Select a random movement pattern
-    pattern = random.choice(
-        ['bezier', 'circle', 'zigzag', 'corner', 'overshoot'])
+    # 4) Optional small pre‑move jitter
+    jx, jy = (start_x + random.uniform(-3, 3),
+              start_y + random.uniform(-3, 3))
+    # 4.5) Optional small circular jitter around the jitter point
 
-    if pattern == 'bezier':
-        # Standard bezier curve with correction points
-        control_x1 = start_x + (random.random() - 0.5) * \
-            distance * 0.4 * (curve_intensity/5)
-        control_y1 = start_y + (random.random() - 0.5) * \
-            distance * 0.4 * (curve_intensity/5)
-        control_x2 = end_x + (random.random() - 0.5) * \
-            distance * 0.4 * (curve_intensity/5)
-        control_y2 = end_y + (random.random() - 0.5) * \
-            distance * 0.4 * (curve_intensity/5)
+    cx, cy = jx, jy
+    radius = random.uniform(3, 6)
+    steps = max(6, int(random.uniform(8, 12)))
+    for i in range(steps):
+        angle = (i / steps) * math.tau  # full circle
+        circle_x = cx + math.cos(angle) * radius
+        circle_y = cy + math.sin(angle) * radius
+        pyautogui.moveTo(circle_x, circle_y,
+                         duration=total_dur * 0.05,
+                         tween=tween)
+        # return to the jitter point
+    pyautogui.moveTo(cx, cy, duration=total_dur * 0.05, tween=tween)
 
-        # Move the mouse along the path
-        last_point = (start_x, start_y)
-        for i in range(steps):
-            t = i / steps
-            x = (1-t)**3 * start_x + 3*(1-t)**2 * t * control_x1 + \
-                3*(1-t) * t**2 * control_x2 + t**3 * end_x
-            y = (1-t)**3 * start_y + 3*(1-t)**2 * t * control_y1 + \
-                3*(1-t) * t**2 * control_y2 + t**3 * end_y
+    # 5) Main move with slight endpoint jitter
+    ex, ey = (end_x + random.uniform(-2, 2),
+              end_y + random.uniform(-2, 2))
+    pyautogui.moveTo(ex, ey, duration=total_dur * 0.7, tween=tween)
 
-            # Occasionally use last_point to simulate momentum and hand tremor (5% chance)
-            if random.random() < 0.05:
-                # Blend current target with last position (momentum effect)
-                x = 0.85 * x + 0.15 * last_point[0]
-                y = 0.85 * y + 0.15 * last_point[1]
-                # Add stronger jitter for "tremor"
-                jitter_x = x + random.uniform(-4, 4)
-                jitter_y = y + random.uniform(-4, 4)
-            else:
-                # Normal jitter
-                jitter_x = x + random.uniform(-2, 2)
-                jitter_y = y + random.uniform(-2, 2)
-
-            # Move mouse and update last_point
-            pyautogui.moveTo(jitter_x, jitter_y)
-            last_point = (jitter_x, jitter_y)
-            time.sleep(interval * random.uniform(0.8, 1.2))
-
-    elif pattern == 'circle':
-        # Move in a partial circular arc to target
-        center_x = (start_x + end_x) / 2
-        center_y = (start_y + end_y) / 2
-        radius = distance / 2
-
-        # Random clockwise or counterclockwise
-        clockwise = random.choice([1, -1])
-
-        for i in range(steps):
-            t = i / steps
-            angle = math.pi * t * clockwise
-
-            # Calculate position on arc
-            x = center_x + math.cos(angle) * radius * \
-                (1-t) + (end_x - center_x) * t
-            y = center_y + math.sin(angle) * radius * \
-                (1-t) + (end_y - center_y) * t
-
-            pyautogui.moveTo(x, y)
-            time.sleep(interval * random.uniform(0.8, 1.2))
-
-    elif pattern == 'zigzag':
-        # Move in a zigzag pattern to destination
-        for i in range(steps):
-            t = i / steps
-
-            # Base position
-            x = start_x + (end_x - start_x) * t
-            y = start_y + (end_y - start_y) * t
-
-            # Add zigzag variation
-            # Decreasing amplitude as we approach target
-            amplitude = distance * 0.1 * (1-t)
-            if i % 2 == 0:
-                x += random.uniform(0, amplitude)
-                y -= random.uniform(0, amplitude)
-            else:
-                x -= random.uniform(0, amplitude)
-                y += random.uniform(0, amplitude)
-
-            pyautogui.moveTo(x, y)
-            time.sleep(interval * random.uniform(0.9, 1.1))
-
-    elif pattern == 'corner':
-        # Move to a corner first, then to destination
-        corner_x = end_x
-        corner_y = start_y
-
-        if random.random() < 0.5:  # Randomize which corner we use
-            corner_x = start_x
-            corner_y = end_y
-
-        # First half - move to corner
-        half_steps = steps // 2
-        for i in range(half_steps):
-            t = i / half_steps
-            x = start_x + (corner_x - start_x) * t
-            y = start_y + (corner_y - start_y) * t
-
-            pyautogui.moveTo(x + random.uniform(-2, 2),
-                             y + random.uniform(-2, 2))
-            time.sleep(interval * random.uniform(0.9, 1.1))
-
-        # Second half - move from corner to destination
-        for i in range(half_steps):
-            t = i / half_steps
-            x = corner_x + (end_x - corner_x) * t
-            y = corner_y + (end_y - corner_y) * t
-
-            pyautogui.moveTo(x + random.uniform(-2, 2),
-                             y + random.uniform(-2, 2))
-            time.sleep(interval * random.uniform(0.9, 1.1))
-
-    elif pattern == 'overshoot':
-        # Overshoot and correct - humans often do this
-
-        # Calculate overshoot point (10-20% past target)
-        overshoot_t = random.uniform(1.1, 1.2)
-        overshoot_x = start_x + (end_x - start_x) * overshoot_t
-        overshoot_y = start_y + (end_y - start_y) * overshoot_t
-
-        # First move quickly toward overshoot point
-        quick_steps = int(steps * 0.8)
-        for i in range(quick_steps):
-            t = i / quick_steps
-
-            # Use Bezier for natural arc
-            control_x = start_x + (end_x - start_x) * \
-                0.5 + random.uniform(-30, 30)
-            control_y = start_y + (end_y - start_y) * \
-                0.5 + random.uniform(-30, 30)
-
-            x = (1-t)**2 * start_x + 2*(1-t)*t * control_x + t**2 * overshoot_x
-            y = (1-t)**2 * start_y + 2*(1-t)*t * control_y + t**2 * overshoot_y
-
-            pyautogui.moveTo(x, y)
-            time.sleep(interval * 0.9)  # Move faster during overshoot
-
-        # Then slowly correct back to actual target
-        correction_steps = steps - quick_steps
-        for i in range(correction_steps):
-            t = i / correction_steps
-
-            x = overshoot_x + (end_x - overshoot_x) * t
-            y = overshoot_y + (end_y - overshoot_y) * t
-
-            # Slower correction movement with small wiggles
-            pyautogui.moveTo(x + random.uniform(-3, 3),
-                             y + random.uniform(-3, 3))
-            time.sleep(interval * 1.5)  # Slower during correction
-
-    # Final cleanup - make sure we end exactly at the target
-    pyautogui.moveTo(end_x, end_y)
+    # 6) Final correction to exact target
+    pyautogui.moveTo(end_x, end_y, duration=total_dur * 0.1)
 
 
-def human_click(x=None, y=None, button='left'):
+def human_click(x=None, y=None, button='left', speed_factor=0.9):
     """
     Perform a very human-like click with variable pre-click behaviors.
     """
@@ -185,22 +56,22 @@ def human_click(x=None, y=None, button='left'):
         # Move to position with human-like curve
         human_like_mouse_move(None, None, x, y,
                               duration=random.uniform(
-                                  0.4, 0.9),  # Variable speed
-                              curve_intensity=random.randint(2, 7))
+                                  0.1, 1.5), speed_factor=speed_factor)
 
     # Random pre-click behavior (20% chance)
-    if random.random() < 0.2:
+    speed_multiplier = 1.0 / max(0.1, speed_factor)
+    if random.random() < 0.2 * speed_multiplier:
         behavior = random.choice(['hesitate', 'circle', 'doublePosition'])
 
         if behavior == 'hesitate':
             # Hesitate before clicking (common when targeting small elements)
-            time.sleep(random.uniform(0.1, 0.4))
+            time.sleep(random.uniform(0.1, 0.4) * speed_multiplier)
 
         elif behavior == 'circle':
             # Small circular motion around target (very human targeting behavior)
             current_x, current_y = pyautogui.position()
-            radius = random.randint(3, 8)
-            steps = random.randint(5, 10)
+            radius = random.uniform(3, 8) * speed_multiplier
+            steps = max(3, int(random.uniform(4, 10) * speed_multiplier))
 
             for i in range(steps):
                 angle = (i / steps) * math.pi * 2
@@ -215,27 +86,28 @@ def human_click(x=None, y=None, button='left'):
         elif behavior == 'doublePosition':
             # Readjust position slightly (humans often reposition for precision)
             current_x, current_y = pyautogui.position()
-            adjust_x = current_x + random.randint(-5, 5)
-            adjust_y = current_y + random.randint(-5, 5)
+            adjust_x = current_x + random.uniform(-5, 5)
+            adjust_y = current_y + random.uniform(-5, 5)
 
             # Small movement away and back
             pyautogui.moveTo(adjust_x, adjust_y)
-            time.sleep(random.uniform(0.1, 0.2))
+            time.sleep(random.uniform(0.1, 0.2) * speed_multiplier)
             pyautogui.moveTo(current_x, current_y)
 
     # Slight pause before clicking (very natural targeting behavior)
-    time.sleep(random.uniform(0.05, 0.15))
+    time.sleep(random.uniform(0.05, 0.09) * speed_multiplier)
 
     # Click with variable duration
-    pyautogui.click(button=button, duration=random.uniform(0.01, 0.1))
+    pyautogui.click(button=button, duration=random.uniform(
+        0.01, 0.09) * speed_multiplier)
 
     # Sometimes humans keep the mouse still after clicking, sometimes they move it slightly
-    if random.random() < 0.3:
-        time.sleep(random.uniform(0.1, 0.3))
+    if random.random() < 0.3 * speed_multiplier:
+        time.sleep(random.uniform(0.01, 0.3) * speed_multiplier)
     else:
         current_x, current_y = pyautogui.position()
         pyautogui.moveTo(
-            current_x + random.randint(-10, 10),
-            current_y + random.randint(-10, 10),
-            duration=0.1
+            current_x + random.uniform(-10, 10),
+            current_y + random.uniform(-10, 10),
+            duration=0.1 * speed_multiplier
         )
