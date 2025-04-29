@@ -88,6 +88,8 @@
 欢迎通过 Fork、分支和 Pull Request 共同协作。  
 
 
+# English Instruction
+
 
 # HR-AI-Agent
 
@@ -181,95 +183,3 @@ An automated, human-like browser scraping framework for HR platforms (BossZH, 51
 
 Happy scraping!  
 Collaborate by forking, branching, and submitting pull requests.// filepath: README.md
-# HR-AI-Agent
-
-An automated, human-like browser scraping framework for HR platforms (BossZH, 51Job, Liepin), with caching and configurable settings.
-
-## Prerequisites
-
-- Python 3.8+
-- (Optional) Google Chrome or a supported browser for Selenium
-- Install dependencies:
-  ```sh
-  pip install -r requirements.txt
-  ```
-
-## Quick Start
-
-1. Clone the repo and create a virtual environment  
-   ```sh
-   git clone https://github.com/raselmahmud-coder/HR-AI-Agent.git
-   cd HR-AI-Agent
-   python -m venv .venv
-   source .venv/bin/activate  # Windows: .venv\Scripts\activate
-   ```
-2. Install requirements  
-   ```sh
-   pip install -r requirements.txt
-   ```
-3. Configure settings in [config/settings.py](config/settings.py)  
-4. Run the main script  
-   ```sh
-   python main.py
-   ```
-
-## Directory Structure
-
-- `.vscode/`  
-  - [settings.json](.vscode/settings.json) – VSCode workspace settings (formatting, linting).
-- `config/`  
-  - [settings.py](config/settings.py) – URLs, timeouts, query parameters, skill maps.  
-  - [__init__.py](config/__init__.py) – Exposes constants for easy import.
-- `helpers/`  
-  - [lookup_caching.py](helpers/lookup_caching.py) – Caches API or page lookup results.  
-  - [mouse_movements.py](helpers/mouse_movements.py) – Implements [`human_like_mouse_move`](helpers/mouse_movements.py) and [`human_click`](helpers/mouse_movements.py) for realistic mouse actions.  
-  - [sleeping_time.py](helpers/sleeping_time.py) – Generates randomized delays to mimic human pauses.
-- `browsers/`  
-  - [pyautogui_browser.py](browsers/pyautogui_browser.py) – Automation using PyAutoGUI.  
-  - [selenium_browser.py](browsers/selenium_browser.py) – Automation using Selenium WebDriver.  
-  - [stealth.min.js](browsers/stealth.min.js) – Injected JS to evade headless detection.
-- `scraper_agents/`  
-  - `boss_hr/`  
-    - [candidate_db.py](scraper_agents/boss_hr/candidate_db.py) – [`CandidateDatabase`](scraper_agents/boss_hr/candidate_db.py) tracks scraped candidates & stats.  
-    - [__init__.py](scraper_agents/boss_hr/__init__.py) – Module entrypoint.
-  - `jobs51_hr/`  
-    - [__init__.py](scraper_agents/jobs51_hr/__init__.py) – Imports Jobs51 scraping logic.
-  - `liepin_hr/`  
-    - [__init__.py](scraper_agents/liepin_hr/__init__.py) – Imports Liepin scraping logic.
-- `cache_database/`  
-  - [jobs51_cache_database.json](cache_database/jobs51_cache_database.json) – Persistent JSON cache of Jobs51 results.
-- `data_extract/`  
-  - (parsers and extraction utilities for scraped HTML/data)
-- `utils/`  
-  - (shared utilities, e.g., logging)  
-  - [`logger`](utils/logger.py) – Configured logger for consistent output.
-- `tests/`  
-  - Unit tests for critical functions; run with:
-    ```sh
-    pytest
-    ```
-- `resources/`  
-  - Static assets, templates, or data files.
-- `logs/`  
-  - Runtime logs (`YYYYMMDD_HHMMSS.log`) for debugging.
-
-## File Overview
-
-- [main.py](main.py)  
-  Entry point: initializes agents, loads settings, and starts scraping workflows.
-- [requirements.txt](requirements.txt)  
-  Third‑party dependencies (PyAutoGUI, Selenium, requests, etc.).
-- [.gitignore](.gitignore)  
-  Excludes virtual environments, logs, cache, and Python artifacts.
-
-## Usage Tips
-
-- Customize `JOB_QUERY`, `IT_SKILLS`, `EXPERIENCE_LEVELS` in [config/settings.py](config/settings.py).
-- Switch between PyAutoGUI and Selenium in `main.py`.
-- Monitor `logs/` for detailed run information.
-- Extend or add new agents under `scraper_agents/` by following the existing structure.
-
----
-
-Happy scraping!  
-Collaborate by forking, branching, and submitting pull requests.

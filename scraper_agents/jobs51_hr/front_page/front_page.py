@@ -23,11 +23,13 @@ def find_N_click(image_path, min_sleep=0.5, max_sleep=3.0):
             logger.info(
                 f"Using cached coords for {os.path.basename(image_path)}: {x},{y}")
         else:
+            print("New image coords", image_path)
             pos = pyautogui.locateCenterOnScreen(image_path, confidence=0.6)
+            print("New image coords", pos)
             if not pos:
                 raise RuntimeError(f"Couldn't find {image_path} on screen!")
 
-            x, y = int(pos[0]), int(pos[1])
+            x, y = pos
             cache[img_id] = [x, y]
             cache_updated = True
             logger.info(
@@ -47,7 +49,7 @@ def find_N_click(image_path, min_sleep=0.5, max_sleep=3.0):
         return True
 
     except Exception as e:
-        logger.error(f"Error in find_N_click: {str(e)}")
+        logger.error(f"Error in find_N_click: {e}")
         return False
 
 
@@ -55,12 +57,14 @@ def get_front_page():
     try:
 
         image_path1 = os.path.join(
-            project_root, "resources", "coords_images", "1.png")
+            project_root, "resources", "coords_images", "jobs51_coords_images", "1.png")
         image_path2 = os.path.join(
-            project_root, "resources", "coords_images", "2.png")
+            project_root, "resources", "coords_images", "jobs51_coords_images", "search_job.png")
+        image_path3 = os.path.join(
+            project_root, "resources", "coords_images", "jobs51_coords_images", "search_btn.png")
 
         find_N_click(image_path1, min_sleep=0.6, max_sleep=1)
-        find_N_click(image_path2, 0.01, 0.07)
+        find_N_click(image_path2, min_sleep=0.6, max_sleep=1)
 
         # Take screenshot of result
         screenshot_path = os.path.join(
