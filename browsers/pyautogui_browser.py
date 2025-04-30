@@ -3,7 +3,7 @@ import subprocess
 import ctypes
 import pyautogui
 import time
-
+from helpers.sleeping_time import random_sleep
 from utils.logger import logger
 
 
@@ -25,7 +25,7 @@ def py_auto_gui_browser(get_URL='https://www.51job.com/'):
         ])
         logger.info(
             f"⏳ Launched Chrome Display Screen size (should be 1920x1080): {pyautogui.size()}")
-        time.sleep(1)
+        random_sleep(1.5, 3.5)
 
     except Exception as e:
         logger.debug("Browser opening error", e)

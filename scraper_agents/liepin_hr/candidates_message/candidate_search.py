@@ -10,7 +10,7 @@ from utils.logger import logger
 project_root = os.path.abspath(os.path.join(
     os.path.dirname(__file__), "../../../"))
 cache_path = os.path.join(
-    project_root, "cache_database", "jobs51_cache_database.json")
+    project_root, "cache_database", "leipin_cache_database.json")
 
 
 def find_N_click(image_path, min_sleep=0.5, max_sleep=3.0):
@@ -114,15 +114,15 @@ def scroll_down_gradually(num_scrolls=5, scroll_amount=-100, delay_between=0.5, 
         return False
 
 
-def get_front_page(driver):
+def get_candidates_search():
     try:
 
         talent_menu = os.path.join(
-            project_root, "resources", "coords_images", "jobs51_coords_images", "talent_search_menu.png")
+            project_root, "resources", "coords_images", "leipin_coords_images", "talent_search_menu.png")
         search_field_image = os.path.join(
-            project_root, "resources", "coords_images", "jobs51_coords_images", "talent_search_field.png")
+            project_root, "resources", "coords_images", "leipin_coords_images", "talent_search_field.png")
         talent_search_btn = os.path.join(
-            project_root, "resources", "coords_images", "jobs51_coords_images", "talent_search_btn.png")
+            project_root, "resources", "coords_images", "leipin_coords_images", "talent_search_btn.png")
 
         find_N_click(talent_menu, min_sleep=0.2, max_sleep=0.6)
         if find_N_click(search_field_image, min_sleep=0.6, max_sleep=1):

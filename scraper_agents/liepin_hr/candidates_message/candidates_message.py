@@ -10,7 +10,7 @@ from utils.logger import logger
 project_root = os.path.abspath(os.path.join(
     os.path.dirname(__file__), "../../../"))
 cache_path = os.path.join(
-    project_root, "cache_database", "jobs51_cache_database.json")
+    project_root, "cache_database", "liepin_cache_database.json")
 
 
 def find_N_click(image_path, min_sleep=0.5, max_sleep=3.0):
@@ -114,24 +114,131 @@ def scroll_down_gradually(num_scrolls=5, scroll_amount=-100, delay_between=0.5, 
         return False
 
 
-def get_front_page(driver):
+def run_devtools_script():
+    """Open DevTools and run a script to find candidates, returning the result"""
     try:
+        logger.info("Opening DevTools to run script")
 
+        # Open DevTools with F12 key
+        pyautogui.press('f12')
+        random_sleep(1.5, 2.5)  # Give DevTools time to open
+
+        # Switch to Console tab with Esc (to exit any inspector mode) then Console tab
+        pyautogui.press('escape')
+        random_sleep(0.3, 0.7)
+
+        # In many browsers, you can use Ctrl+` or just click the Console tab
+        pyautogui.hotkey('ctrl', '`')  # Try to switch to console
+        random_sleep(0.8, 1.5)
+
+        # Prepare the script
+        script = """(() => {
+        const els = Array.from(document.querySelectorAll('.im-ui-contact-info'));
+        return els.map(el => {
+          const r = el.getBoundingClientRect();
+          return { x: r.left, y: r.top, w: r.width, h: r.height };
+        });
+      })();"""
+
+        # Copy script to clipboard
+        pyperclip.copy(script)
+
+        # Paste in console
+        pyautogui.hotkey('ctrl', 'v')
+        random_sleep(0.5, 1.0)
+
+        # Execute
+        pyautogui.press('enter')
+        random_sleep(1.0, 2.0)
+
+        # The result should now be shown
+        # To get the output, we need to copy it
+        # First select the output by clicking on it (approximately)
+        # This is tricky as the position isn't fixed, let's try a common position
+
+        # Click where the output would typically appear
+        # This is very browser-dependent, might need adjustment
+        x_offset = 300  # Horizontal position relative to the left edge
+        y_offset = 50   # Vertical position from the current position
+
+        # Calculate current position and add offsets
+        current_x, current_y = pyautogui.position()
+        result_pos_x = current_x  # Keep the x position
+        result_pos_y = current_y + y_offset  # Move down to where result might be
+
+        # Click on the result
+        pyautogui.click(result_pos_x, result_pos_y)
+        random_sleep(0.3, 0.7)
+
+        # Triple click to select all text in the result
+        pyautogui.tripleClick()
+        random_sleep(0.3, 0.7)
+
+        # Copy the selected text
+        pyautogui.hotkey('ctrl', 'c')
+        random_sleep(0.3, 0.7)
+
+        # Get the copied text
+        result = pyperclip.paste()
+
+        # Close DevTools
+        pyautogui.press('f12')
+        random_sleep(0.5, 1.0)
+
+        # Try to extract just the number
+        # The output might be like "Array(8)" or similar
+        import re
+        count_match = re.search(r'Array\((\d+)\)', result)
+
+        if count_match:
+            count = int(count_match.group(1))
+            logger.info(f"Found {count} candidate elements")
+        else:
+            # Try to parse the full JSON if available
+            import json
+            try:
+                parsed = json.loads(result)
+                count = len(parsed)
+                logger.info(f"Found {count} candidate elements with details")
+            except:
+                logger.warning(
+                    f"Could not parse candidate count from: {result[:100]}")
+                count = "unknown"
+
+        return count, result
+
+    except Exception as e:
+        logger.error(f"Error running DevTools script: {e}")
+        return None, None
+
+
+def get_candidates_conversations():
+    try:
+        # First try to run the DevTools script to count candidates
+        candidates_count, script_result = run_devtools_script()
+        logger.info(f"DevTools script found {candidates_count} candidates")
+
+        # Save the result to a debug file
+        debug_path = os.path.join(
+            project_root, "resources", "debug_screenshots", "devtools_result.txt")
+        with open(debug_path, 'w', encoding='utf-8') as f:
+            f.write(
+                f"Count: {candidates_count}\n\nRaw Result:\n{script_result}")
         talent_menu = os.path.join(
-            project_root, "resources", "coords_images", "jobs51_coords_images", "talent_search_menu.png")
+            project_root, "resources", "coords_images", "leipin_coords_images", "talent_search_menu.png")
         search_field_image = os.path.join(
-            project_root, "resources", "coords_images", "jobs51_coords_images", "talent_search_field.png")
+            project_root, "resources", "coords_images", "leipin_coords_images", "talent_search_field.png")
         talent_search_btn = os.path.join(
-            project_root, "resources", "coords_images", "jobs51_coords_images", "talent_search_btn.png")
+            project_root, "resources", "coords_images", "leipin_coords_images", "talent_search_btn.png")
 
         find_N_click(talent_menu, min_sleep=0.2, max_sleep=0.6)
-        if find_N_click(search_field_image, min_sleep=0.6, max_sleep=1):
-            human_typewrite("java开发人员", 0.01, 0.2)
-            find_N_click(talent_search_btn, min_sleep=0.1, max_sleep=0.5)
+        # if find_N_click(search_field_image, min_sleep=0.6, max_sleep=1):
+        #     human_typewrite("java开发人员", 0.01, 0.2)
+        #     find_N_click(talent_search_btn, min_sleep=0.1, max_sleep=0.5)
 
-        random_sleep(2.0, 3.0)
-        # Start scrolling down gradually with human-like behavior
-        scroll_down_gradually(num_scrolls=5, delay_between=0.5)
+        # random_sleep(2.0, 3.0)
+        # # Start scrolling down gradually with human-like behavior
+        # scroll_down_gradually(num_scrolls=5, delay_between=0.5)
 
         # Take screenshot of result
         screenshot_path = os.path.join(
