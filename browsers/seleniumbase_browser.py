@@ -47,7 +47,7 @@ class SBDriverManager:
                 uc_cdp=True,
                 headless=False,
                 test=True,
-                ad_block=True,
+                ad_block=False,
                 chromium_arg="--timezone=Asia/Shanghai",
                 locale_code="cn"
             )

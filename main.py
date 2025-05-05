@@ -1,6 +1,6 @@
 from time import sleep
 from browsers.seleniumbase_browser import create_sbase_driver, sb_manager
-from scraper_agents.liepin_hr.scraper_liepin import run_scraper_leipin
+from scraper_agents.liepin_hr.scraper_liepin import run_scraper_liepin
 from utils.logger import logger
 
 
@@ -16,7 +16,7 @@ def main():
         )
 
         # Now you can use CDP commands (the activate_cdp_mode was already called in create_driver)
-        run_scraper_leipin(sb)
+        run_scraper_liepin(sb)
 
         # Wait for user input before closing (optional)
         input("Press Enter to continue...")

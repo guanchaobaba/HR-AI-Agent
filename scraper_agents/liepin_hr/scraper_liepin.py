@@ -3,7 +3,7 @@ from scraper_agents.liepin_hr.candidates_message.candidates_message import get_c
 from utils.logger import logger
 
 
-def run_scraper_leipin(sb):
+def run_scraper_liepin(sb):
     try:
         get_candidates_conversations(sb)
 
