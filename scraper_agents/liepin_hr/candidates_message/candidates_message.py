@@ -1,6 +1,7 @@
 import random
 import pyperclip  # Add this import at the top
 import pyautogui
+from pyautogui import easeInOutCubic
 import os
 from helpers.lookup_caching import get_image_id, load_cache, save_cache
 from helpers.mouse_movements import human_click
@@ -114,96 +115,79 @@ def scroll_down_gradually(num_scrolls=5, scroll_amount=-100, delay_between=0.5, 
         return False
 
 
-def run_devtools_script():
+def run_custom_script(sb):
     """Open DevTools and run a script to find candidates, returning the result"""
     try:
-        logger.info("Opening DevTools to run script")
+        js_script = """
+        // Your JS script for mouse movements or other actions
+        console.log("Executing custom JS");
+        return document.body.innerHTML;
+        """
+        re = sb.cdp.evaluate(js_script)
+        logger.info(
+            f"JS execution completed with {len(re) if re else 0} bytes of data")
 
-        # Open DevTools with F12 key
-        pyautogui.press('f12')
-        random_sleep(1.5, 2.5)  # Give DevTools time to open
+        # ─── 1) Wait and Grab the last contact element ──────────────────────────────────
+        contacts = sb.find_elements(".im-ui-contact-info", timeout=20)
+        el = contacts[0]
 
-        # Switch to Console tab with Esc (to exit any inspector mode) then Console tab
-        pyautogui.press('escape')
-        random_sleep(0.3, 0.7)
+        # ─── 2) Scroll into view ──────────────────────────────────────────────
+        sb.cdp.evaluate(
+            "arguments[0].scrollIntoView({block:'center'});", el)
+        sb.sleep(3)
 
-        # In many browsers, you can use Ctrl+` or just click the Console tab
-        pyautogui.hotkey('ctrl', '`')  # Try to switch to console
-        random_sleep(0.8, 1.5)
+        # ─── 3) Run JS to fetch all metrics in *physical* pixels ──────────────
+        debug_script = """
+        // returns client‐rect, screen offset and DPR
+        const r   = arguments[0].getBoundingClientRect();
+        const win = window;
+        const dpr = win.devicePixelRatio || 1;
+        return {
+          clientX: r.left,
+          clientY: r.top,
+          width  : r.width,
+          height : r.height,
+          screenX: win.screenX  || win.screenLeft,
+          screenY: win.screenY  || win.screenTop,
+          innerW : win.innerWidth,
+          innerH : win.innerHeight,
+          outerW : win.outerWidth,
+          outerH : win.outerHeight,
+          dpr    : dpr
+        };
+        """
+        m = sb.cdp.evaluate(debug_script, el)
+        if not isinstance(m, dict):
+            raise RuntimeError(f"JS did not return a dict; got: {m!r}")
 
-        # Prepare the script
-        script = """(() => {
-        const els = Array.from(document.querySelectorAll('.im-ui-contact-info'));
-        return els.map(el => {
-          const r = el.getBoundingClientRect();
-          return { x: r.left, y: r.top, w: r.width, h: r.height };
-        });
-      })();"""
+        # ─── 4) Log raw JS values (for debugging) ─────────────────────────────
+        screen_w, screen_h = pyautogui.size()
+        logger.info(f"JS metrics: {m}")
+        logger.info(f"Screen size (px): {screen_w}×{screen_h}")
 
-        # Copy script to clipboard
-        pyperclip.copy(script)
+        # 5) Compute the *physical* center of the element,
+        #    accounting for the browser chrome = outerH - innerH (in CSS px)
+        chrome_ui_css = m['outerH'] - m['innerH']
+        chrome_ui_phys = chrome_ui_css * m['dpr']
 
-        # Paste in console
-        pyautogui.hotkey('ctrl', 'v')
-        random_sleep(0.5, 1.0)
+        tx = m['screenX'] + (m['clientX'] * m['dpr']) + \
+            (m['width'] * m['dpr'] / 2)
 
-        # Execute
-        pyautogui.press('enter')
-        random_sleep(1.0, 2.0)
+        ty = m['screenY'] + chrome_ui_phys + \
+            (m['clientY'] * m['dpr']) + (m['height'] * m['dpr'] / 2)
 
-        # The result should now be shown
-        # To get the output, we need to copy it
-        # First select the output by clicking on it (approximately)
-        # This is tricky as the position isn't fixed, let's try a common position
+        # ─── 6) Clamp to your monitor if you like ────────────────────────────
+        tx = max(0, min(screen_w - 1, tx))
+        ty = max(0, min(screen_h - 1, ty))
 
-        # Click where the output would typically appear
-        # This is very browser-dependent, might need adjustment
-        x_offset = 300  # Horizontal position relative to the left edge
-        y_offset = 50   # Vertical position from the current position
+        logger.info(f"Computed click target: ({tx:.0f}, {ty:.0f})")
 
-        # Calculate current position and add offsets
-        current_x, current_y = pyautogui.position()
-        result_pos_x = current_x  # Keep the x position
-        result_pos_y = current_y + y_offset  # Move down to where result might be
-
-        # Click on the result
-        pyautogui.click(result_pos_x, result_pos_y)
-        random_sleep(0.3, 0.7)
-
-        # Triple click to select all text in the result
-        pyautogui.tripleClick()
-        random_sleep(0.3, 0.7)
-
-        # Copy the selected text
-        pyautogui.hotkey('ctrl', 'c')
-        random_sleep(0.3, 0.7)
-
-        # Get the copied text
-        result = pyperclip.paste()
-
-        # Close DevTools
-        pyautogui.press('f12')
-        random_sleep(0.5, 1.0)
-
-        # Try to extract just the number
-        # The output might be like "Array(8)" or similar
-        import re
-        count_match = re.search(r'Array\((\d+)\)', result)
-
-        if count_match:
-            count = int(count_match.group(1))
-            logger.info(f"Found {count} candidate elements")
-        else:
-            # Try to parse the full JSON if available
-            import json
-            try:
-                parsed = json.loads(result)
-                count = len(parsed)
-                logger.info(f"Found {count} candidate elements with details")
-            except:
-                logger.warning(
-                    f"Could not parse candidate count from: {result[:100]}")
-                count = "unknown"
+        # ─── 7) Move & click ─────────────────────────────────────────────────
+        pyautogui.moveTo(tx, ty, duration=1.0, tween=easeInOutCubic)
+        pyautogui.click()
+        logger.info("Clicked on the *last* contact via PyAutoGUI")
+        count = len(contacts)
+        result = contacts
 
         return count, result
 
@@ -212,10 +196,10 @@ def run_devtools_script():
         return None, None
 
 
-def get_candidates_conversations():
+def get_candidates_conversations(sb):
     try:
         # First try to run the DevTools script to count candidates
-        candidates_count, script_result = run_devtools_script()
+        candidates_count, script_result = run_custom_script(sb)
         logger.info(f"DevTools script found {candidates_count} candidates")
 
         # Save the result to a debug file
@@ -231,7 +215,7 @@ def get_candidates_conversations():
         talent_search_btn = os.path.join(
             project_root, "resources", "coords_images", "leipin_coords_images", "talent_search_btn.png")
 
-        find_N_click(talent_menu, min_sleep=0.2, max_sleep=0.6)
+        # find_N_click(talent_menu, min_sleep=0.2, max_sleep=0.6)
         # if find_N_click(search_field_image, min_sleep=0.6, max_sleep=1):
         #     human_typewrite("java开发人员", 0.01, 0.2)
         #     find_N_click(talent_search_btn, min_sleep=0.1, max_sleep=0.5)
